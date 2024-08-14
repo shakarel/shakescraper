@@ -1,0 +1,6 @@
+Flask
+Flask-SocketIO
+requests
+beautifulsoup4
+flask_cors
+hashlib
