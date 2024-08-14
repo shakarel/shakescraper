@@ -1,6 +1,7 @@
 import requests
 from config.config import WEBHOOK_URL
 
+
 class Notifier:
     def notify_offline_components(self, url: str, status: str, content: str):
         notify_webhook_url = WEBHOOK_URL + "/notify"

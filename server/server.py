@@ -18,10 +18,6 @@ class WebSocketServer:
         self._register_routes()
 
     def _register_routes(self):
-        @self.app.route('/')
-        def index():
-            return "Server is running"
-
         @self.app.route('/scrape', methods=["POST"])
         def scrape():
             data = request.json

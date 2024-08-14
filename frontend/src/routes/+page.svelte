@@ -6,9 +6,11 @@
     let updates = [];
     let htmlContent = '';
     let displayHtml = false;
+    let isLoading = false;
+    let toastMessage = '';
+    let showToast = false;
 
     onMount(() => {
-        // Load updates from local storage
         const storedUpdates = localStorage.getItem('scrapingUpdates');
         if (storedUpdates) {
             updates = JSON.parse(storedUpdates);
@@ -26,7 +28,24 @@
         localStorage.setItem('scrapingUpdates', JSON.stringify(updates));
     }
 
+    function showToastMessage(message) {
+        toastMessage = message;
+        showToast = true;
+        setTimeout(() => showToast = false, 3000);
+    }
+
     async function startScraping() {
+        if (updates.some(update => update.url === urlInput)) {
+            showToastMessage('URL already exists in the list.');
+            return;
+        }
+
+        if (!isValidUrl(urlInput)) {
+            showToastMessage('Invalid URL format.');
+            return;
+        }
+
+        isLoading = true;
         try {
             const response = await fetch('http://127.0.0.1:5002/scrape', {
                 method: 'POST',
@@ -35,18 +54,52 @@
                 },
                 body: JSON.stringify({ url: urlInput })
             });
+
+            if (!response.ok) {
+                showToastMessage('Failed to scrape the URL. Please check if it is valid.');
+                return;
+            }
+
             const data = await response.json();
             console.log(data);
         } catch (error) {
             console.error('Error:', error);
+            showToastMessage('An error occurred during scraping.');
+        } finally {
+            isLoading = false;
+        }
+    }
+
+    function isValidUrl(url) {
+        try {
+            new URL(url);
+            return true;
+        } catch (_) {
+            return false;
         }
     }
 
     async function viewPage(key) {
         try {
             const response = await fetch(`http://127.0.0.1:5002/page/${key}`);
-            htmlContent = await response.text();
-            displayHtml = true;
+            const contentType = response.headers.get('Content-Type');
+            const content = await response.text();
+
+            if (contentType.includes('html')) {
+                htmlContent = content;
+                displayHtml = true;
+            } else if (contentType.includes('json')) {
+                htmlContent = `<pre>${content}</pre>`;
+                displayHtml = true;
+            } else if (contentType.includes('xml') || contentType.includes('application/xml')) {
+                htmlContent = `<pre>${content}</pre>`;
+                displayHtml = true;
+            } else if (contentType.includes('text')) {
+                htmlContent = `<pre>${content}</pre>`;
+                displayHtml = true;
+            } else {
+                console.error('Unsupported content type:', contentType);
+            }
         } catch (error) {
             console.error('Error:', error);
         }
@@ -77,7 +130,13 @@
         <button class="btn btn-primary ml-2 w-1/4" type="submit">Scrape</button>
     </form>
 
-    <ul class="space-y-4 w-full max-w-lg">
+    <div class="flex justify-center items-center mb-8">
+        {#if isLoading}
+            <div class="spinner border-t-4 border-blue-500 rounded-full w-12 h-12"></div>
+        {/if}
+    </div>
+
+    <ul class="space-y-4 w-full max-w-xl">
         {#each updates as update, index}
             <li class="bg-gray-800 p-4 rounded-lg flex justify-between items-center">
                 <div>
@@ -103,4 +162,25 @@
             </div>
         </div>
     {/if}
+
+    {#if showToast}
+        <div class="fixed bottom-4 right-4 bg-red-600 text-white p-4 rounded-lg shadow-lg">
+            {toastMessage}
+        </div>
+    {/if}
 </div>
+
+<style>
+    .spinner {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .transition-colors {
+        transition: background-color 0.3s, color 0.3s;
+    }
+</style>
